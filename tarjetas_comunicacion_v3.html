@@ -1,0 +1,545 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Mis tarjetas de comunicación</title>
+  <style>
+    :root {
+      --accent: #38a6d8;
+      --ink: #20252b;
+      --muted: #65717d;
+      --paper: #ffffff;
+      --page: #f3f6f8;
+      --line: #dce3e8;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0; color: var(--ink); background: var(--page);
+      font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    }
+    header { padding: 28px 20px 18px; text-align: center; }
+    header h1 { margin: 0 0 8px; font-size: clamp(1.5rem, 4vw, 2.1rem); }
+    header p { margin: 0; color: var(--muted); }
+    main {
+      width: min(1120px, calc(100% - 28px)); margin: 0 auto 40px;
+      display: grid; grid-template-columns: minmax(280px, 0.9fr) minmax(320px, 1.1fr);
+      gap: 20px; align-items: start;
+    }
+    .panel {
+      background: white; border: 1px solid var(--line); border-radius: 18px;
+      padding: 20px; box-shadow: 0 5px 22px #1c35450b;
+    }
+    h2 { margin: 0 0 16px; font-size: 1.15rem; }
+    label { display: block; font-weight: 650; margin: 15px 0 7px; }
+    input[type="text"], textarea, select {
+      width: 100%; padding: 11px 12px; border: 1px solid #cbd5dc;
+      border-radius: 10px; font: inherit; background: white; color: var(--ink);
+    }
+    textarea { min-height: 88px; resize: vertical; }
+    input[type="file"] { width: 100%; font: inherit; }
+    input[type="color"] { width: 52px; height: 40px; border: 0; padding: 0; background: none; }
+    .color-row { display: flex; gap: 12px; align-items: center; flex-wrap: wrap; }
+    .hint { color: var(--muted); font-size: .88rem; line-height: 1.45; margin: 7px 0 0; }
+    .buttons { display: flex; flex-wrap: wrap; gap: 9px; margin-top: 17px; }
+    button {
+      border: 0; border-radius: 11px; padding: 11px 15px; font: inherit;
+      font-weight: 700; cursor: pointer; background: #e8eef2; color: #23313a;
+    }
+    button.primary { background: #176f9c; color: white; }
+    button:hover { filter: brightness(.96); }
+    button:focus-visible, input:focus-visible, textarea:focus-visible, select:focus-visible {
+      outline: 3px solid #83c9ec; outline-offset: 2px;
+    }
+    .preview-wrap { display: grid; place-items: center; padding: 8px 0 18px; }
+    .card {
+      position: relative; isolation: isolate;
+      width: min(100%, 450px); aspect-ratio: 3 / 2; background: white;
+      border: 12px solid var(--accent); border-radius: 13px; overflow: hidden;
+      display: flex; flex-direction: column; align-items: center; justify-content: center;
+      padding: 16px; gap: 10px; text-align: center;
+    }
+    .card.full { background: var(--accent); }
+    .card img {
+      position: absolute; left: 50%; top: 50%; width: 100%; height: 100%;
+      max-width: none; max-height: none; object-fit: contain; display: none;
+      z-index: 0; pointer-events: auto; touch-action: none; cursor: grab;
+      transform-origin: center; user-select: none;
+    }
+    .card img:active { cursor: grabbing; }
+    .card img.cover { object-fit: cover; }
+    .card .message {
+      position: absolute; left: 50%; top: 70%; z-index: 1;
+      width: 82%; margin: 0; overflow-wrap: anywhere; white-space: pre-wrap;
+      transform: translate(-50%, -50%); line-height: 1.15; font-weight: 800;
+      touch-action: none; cursor: grab; user-select: none;
+      text-shadow: 0 1px 3px #fff, 1px 0 3px #fff, 0 -1px 3px #fff, -1px 0 3px #fff;
+    }
+    .card .message:active { cursor: grabbing; }
+    .card.full .message { color: white; text-shadow: 0 2px 5px #000b; }
+    .card.full .message { color: white; text-shadow: 0 1px 2px #0003; }
+    .card:not(.full) .message { color: #20252b; }
+    .queue { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 9px; }
+    .mini {
+      border: 3px solid var(--mini-accent); border-radius: 7px; aspect-ratio: 3 / 2;
+      display: grid; place-items: center; padding: 4px; text-align: center;
+      font-size: 11px; font-weight: 700; overflow: hidden; background: white;
+    }
+    .mini.full { background: var(--mini-accent); color: white; }
+    .queue-empty { color: var(--muted); font-size: .9rem; }
+    .privacy {
+      margin-top: 14px; padding: 12px; border-radius: 12px;
+      background: #edf8f1; color: #24563a; font-size: .88rem; line-height: 1.45;
+    }
+    .status { min-height: 1.4em; color: #176f9c; font-size: .9rem; margin-top: 10px; }
+    /* Solo se imprime la hoja de tarjetas, no los controles. */
+    #printArea { display: none; }
+    @media (max-width: 760px) {
+      main { grid-template-columns: 1fr; }
+      .queue { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    }
+    @page { size: A4 portrait; margin: 1cm 1.5cm; }
+    @media print {
+      body { background: white; }
+      header, main { display: none !important; }
+      #printArea { display: block !important; }
+      .print-sheet {
+        width: 18cm; min-height: 27.7cm; display: grid;
+        grid-template-columns: 9cm 9cm;
+        grid-auto-rows: 6cm; column-gap: 0; row-gap: .3cm;
+        align-content: start; break-after: page; page-break-after: always;
+      }
+      .print-sheet:last-child { break-after: auto; page-break-after: auto; }
+      .print-card {
+        width: 9cm; height: 6cm; overflow: hidden; border: 3mm solid var(--print-accent);
+        border-radius: 2mm; display: flex; flex-direction: column; align-items: center;
+        justify-content: center; gap: 2mm; padding: 3mm; text-align: center;
+        background: white; break-inside: avoid;
+      }
+      .print-card.full { background: var(--print-accent); }
+      .print-card { position: relative; isolation: isolate; }
+      .print-card img {
+        position: absolute; inset: 0; width: 100%; height: 100%;
+        max-width: none; max-height: none; object-fit: contain; z-index: -1;
+      }
+      .print-card img.cover { object-fit: cover; }
+      .print-card .print-message {
+        position: relative; z-index: 1; margin: 0; width: 100%;
+        overflow-wrap: anywhere; white-space: pre-wrap;
+        font-size: 16pt; line-height: 1.12; font-weight: 800;
+        text-shadow: 0 1px 3px #fff, 1px 0 3px #fff, 0 -1px 3px #fff, -1px 0 3px #fff;
+      }
+      .print-card.full .print-message { text-shadow: 0 2px 5px #000b; }
+      .print-card.full .print-message { color: white; }
+      .print-card:not(.full) .print-message { color: #20252b; }
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>Mis tarjetas de comunicación</h1>
+    <p>Crea tarjetas personalizadas y preparalas para imprimir.</p>
+  </header>
+
+  <main>
+    <section class="panel" aria-labelledby="editorTitle">
+      <h2 id="editorTitle">Crear una tarjeta</h2>
+
+      <label for="imageInput">1. Elegí una imagen</label>
+      <input id="imageInput" type="file" accept="image/*">
+      <p class="hint">Podés elegir cualquier imagen que tu navegador pueda abrir (por ejemplo PNG, JPG, WEBP, GIF, BMP o AVIF). Algunos formatos especiales, como ciertos HEIC, pueden no ser compatibles.</p>
+
+      <label for="imageModeInput">Ajuste de imagen</label>
+      <select id="imageModeInput">
+        <option value="contain">Mostrar imagen completa (puede dejar espacios)</option>
+        <option value="cover">Llenar toda la tarjeta (puede recortar los bordes)</option>
+      </select>
+      <label for="imageZoomInput">Tamaño de la imagen</label>
+      <div class="color-row">
+        <input id="imageZoomInput" type="range" min="100" max="200" value="100" step="5" style="flex:1">
+        <strong id="imageZoomValue">100%</strong>
+      </div>
+      <p class="hint">Aumentá el zoom para agrandar la imagen. Arrastrala directamente en la vista previa para cambiar su posición.</p>
+
+      <label for="messageInput">2. Escribí el mensaje</label>
+      <textarea id="messageInput" maxlength="180" placeholder="Por ejemplo: Necesito un momento de tranquilidad."></textarea>
+      <label for="textSizeInput">Tamaño del texto</label>
+      <div class="color-row">
+        <input id="textSizeInput" type="range" min="14" max="42" value="25" step="1" style="flex:1">
+        <strong id="textSizeValue">25 px</strong>
+      </div>
+      <p class="hint">También podés mover el texto directamente con el dedo sobre la vista previa.</p>
+
+      <label>3. Elegí el diseño</label>
+      <select id="styleInput">
+        <option value="border">Borde de color y centro blanco</option>
+        <option value="full">Fondo completamente de color</option>
+      </select>
+
+      <label for="colorInput">4. Elegí un color</label>
+      <div class="color-row">
+        <input id="colorInput" type="color" value="#38a6d8" aria-label="Color de la tarjeta">
+        <span id="colorValue">#38a6d8</span>
+      </div>
+
+      <div class="buttons">
+        <button class="primary" id="addButton">Agregar a la hoja A4</button>
+        <button id="downloadButton">Descargar esta tarjeta (PNG)</button>
+        <button id="clearButton">Limpiar editor</button>
+      </div>
+      <div class="status" id="status" role="status" aria-live="polite"></div>
+      <div class="privacy"><strong>Privacidad:</strong> las imágenes y los mensajes se procesan en tu navegador. Esta página no los envía a un servidor ni crea una cuenta.</div>
+    </section>
+
+    <section class="panel" aria-labelledby="previewTitle">
+      <h2 id="previewTitle">Vista previa · 9 × 6 cm</h2>
+      <div class="preview-wrap">
+        <div class="card" id="previewCard">
+          <img id="previewImage" alt="Imagen elegida para la tarjeta">
+          <p class="message" id="previewMessage">Tu mensaje aparecerá aquí</p>
+        </div>
+      </div>
+      <h2>Tarjetas preparadas para A4</h2>
+      <div id="queue" class="queue"><p class="queue-empty">Todavía no agregaste tarjetas.</p></div>
+      <div class="buttons">
+        <button class="primary" id="printButton">Imprimir / Guardar como PDF</button>
+        <button id="removeLastButton">Quitar última tarjeta</button>
+        <button id="clearAllButton">Vaciar hoja</button>
+      </div>
+      <p class="hint">Se organizan hasta 8 tarjetas por hoja A4 (2 columnas × 4 filas). Si agregás más, se crean páginas adicionales.</p>
+    </section>
+  </main>
+
+  <div id="printArea" aria-hidden="true"></div>
+
+  <script>
+    // Referencias a los controles de la página.
+    const imageInput = document.getElementById("imageInput");
+    const messageInput = document.getElementById("messageInput");
+    const styleInput = document.getElementById("styleInput");
+    const colorInput = document.getElementById("colorInput");
+    const colorValue = document.getElementById("colorValue");
+    const previewCard = document.getElementById("previewCard");
+    const previewImage = document.getElementById("previewImage");
+    const previewMessage = document.getElementById("previewMessage");
+    const queue = document.getElementById("queue");
+    const printArea = document.getElementById("printArea");
+    const statusBox = document.getElementById("status");
+
+    // La lista vive solamente en la memoria de esta pestaña.
+    let currentImage = "";
+    let imagePosition = { x: 0, y: 0 };
+    let textPosition = { x: 50, y: 70 };
+    let cards = [];
+
+
+    // Arrastrar imagen y texto en la vista previa (compatible con mouse y pantalla táctil).
+    function enableDragging(element, onMove) {
+      let dragging = false, startX = 0, startY = 0;
+      element.addEventListener("pointerdown", event => {
+        if (element === previewImage && !currentImage) return;
+        dragging = true;
+        startX = event.clientX;
+        startY = event.clientY;
+        element.setPointerCapture(event.pointerId);
+        event.preventDefault();
+      });
+      element.addEventListener("pointermove", event => {
+        if (!dragging) return;
+        const rect = previewCard.getBoundingClientRect();
+        const dx = event.clientX - startX;
+        const dy = event.clientY - startY;
+        startX = event.clientX;
+        startY = event.clientY;
+        onMove(dx, dy, rect);
+        updatePreview();
+      });
+      const stop = () => { dragging = false; };
+      element.addEventListener("pointerup", stop);
+      element.addEventListener("pointercancel", stop);
+    }
+    enableDragging(previewImage, (dx, dy) => {
+      imagePosition.x += dx;
+      imagePosition.y += dy;
+    });
+    enableDragging(previewMessage, (dx, dy, rect) => {
+      textPosition.x = Math.max(5, Math.min(95, textPosition.x + dx / rect.width * 100));
+      textPosition.y = Math.max(5, Math.min(95, textPosition.y + dy / rect.height * 100));
+    });
+
+    function updatePreview() {
+      const message = messageInput.value.trim();
+      previewMessage.textContent = message || "Tu mensaje aparecerá aquí";
+      previewCard.style.setProperty("--accent", colorInput.value);
+      previewCard.classList.toggle("full", styleInput.value === "full");
+      colorValue.textContent = colorInput.value.toUpperCase();
+      imageZoomValue.textContent = imageZoomInput.value + "%";
+      previewImage.classList.toggle("cover", imageModeInput.value === "cover");
+      previewImage.style.transform = `translate(calc(-50% + ${imagePosition.x}px), calc(-50% + ${imagePosition.y}px)) scale(${Number(imageZoomInput.value) / 100})`;
+      previewMessage.style.left = textPosition.x + "%";
+      previewMessage.style.top = textPosition.y + "%";
+      previewMessage.style.fontSize = textSizeInput.value + "px";
+      textSizeValue.textContent = textSizeInput.value + " px";
+
+      if (currentImage) {
+        previewImage.src = currentImage;
+        previewImage.style.display = "block";
+      } else {
+        previewImage.removeAttribute("src");
+        previewImage.style.display = "none";
+      }
+    }
+
+    imageInput.addEventListener("change", () => {
+      const file = imageInput.files[0];
+      if (!file) return;
+      if (file.type && !file.type.startsWith("image/")) {
+        statusBox.textContent = "El archivo no parece ser una imagen. Elegí un archivo de imagen.";
+        imageInput.value = "";
+        return;
+      }
+      if (file.size > 10 * 1024 * 1024) {
+        statusBox.textContent = "La imagen supera los 10 MB. Elegí una imagen más liviana.";
+        imageInput.value = "";
+        return;
+      }
+      const reader = new FileReader();
+      reader.onload = () => {
+        currentImage = reader.result;
+        updatePreview();
+        statusBox.textContent = "Imagen cargada en este dispositivo.";
+      };
+      reader.readAsDataURL(file);
+    });
+
+    [messageInput, styleInput, colorInput, imageModeInput, imageZoomInput, textSizeInput].forEach(control =>
+      control.addEventListener("input", updatePreview)
+    );
+    styleInput.addEventListener("change", updatePreview);
+    imageModeInput.addEventListener("change", updatePreview);
+
+    function makeCardData() {
+      return {
+        image: currentImage,
+        message: messageInput.value.trim(),
+        style: styleInput.value,
+        color: colorInput.value,
+        imageMode: imageModeInput.value,
+        imageZoom: Number(imageZoomInput.value),
+        imageX: imagePosition.x,
+        imageY: imagePosition.y,
+        textX: textPosition.x,
+        textY: textPosition.y,
+        textSize: Number(textSizeInput.value)
+      };
+    }
+
+    function renderQueue() {
+      queue.innerHTML = "";
+      if (cards.length === 0) {
+        const empty = document.createElement("p");
+        empty.className = "queue-empty";
+        empty.textContent = "Todavía no agregaste tarjetas.";
+        queue.appendChild(empty);
+      } else {
+        cards.forEach((card, index) => {
+          const mini = document.createElement("div");
+          mini.className = "mini" + (card.style === "full" ? " full" : "");
+          mini.style.setProperty("--mini-accent", card.color);
+          mini.textContent = (index + 1) + ". " + (card.message || "Sin texto");
+          mini.title = card.message || "Tarjeta sin texto";
+          queue.appendChild(mini);
+        });
+      }
+      renderPrintSheets();
+    }
+
+    function renderPrintSheets() {
+      printArea.innerHTML = "";
+      for (let start = 0; start < cards.length; start += 8) {
+        const sheet = document.createElement("div");
+        sheet.className = "print-sheet";
+        cards.slice(start, start + 8).forEach(card => {
+          const item = document.createElement("article");
+          item.className = "print-card" + (card.style === "full" ? " full" : "");
+          item.style.setProperty("--print-accent", card.color);
+          if (card.image) {
+            const img = document.createElement("img");
+            img.src = card.image;
+            img.alt = "";
+            if (card.imageMode === "cover") img.classList.add("cover");
+            img.style.transform = `translate(calc(-50% + ${(card.imageX || 0) * (9/450)}cm), calc(-50% + ${(card.imageY || 0) * (6/300)}cm)) scale(${(card.imageZoom || 100) / 100})`;
+            item.appendChild(img);
+          }
+          const p = document.createElement("p");
+          p.className = "print-message";
+          p.textContent = card.message || " ";
+          p.style.left = (card.textX ?? 50) + "%";
+          p.style.top = (card.textY ?? 70) + "%";
+          p.style.width = "82%";
+          p.style.fontSize = ((card.textSize || 25) * 0.75) + "pt";
+          item.appendChild(p);
+          sheet.appendChild(item);
+        });
+        printArea.appendChild(sheet);
+      }
+    }
+
+    document.getElementById("addButton").addEventListener("click", () => {
+      if (!currentImage && !messageInput.value.trim()) {
+        statusBox.textContent = "Agregá una imagen o escribí un mensaje antes de guardar la tarjeta.";
+        return;
+      }
+      cards.push(makeCardData());
+      renderQueue();
+      statusBox.textContent = "Tarjeta agregada. Ya tenés " + cards.length + " tarjeta(s).";
+    });
+
+    document.getElementById("removeLastButton").addEventListener("click", () => {
+      if (cards.length) {
+        cards.pop();
+        renderQueue();
+        statusBox.textContent = "Se quitó la última tarjeta.";
+      }
+    });
+
+    document.getElementById("clearAllButton").addEventListener("click", () => {
+      cards = [];
+      renderQueue();
+      statusBox.textContent = "La hoja está vacía.";
+    });
+
+    document.getElementById("clearButton").addEventListener("click", () => {
+      currentImage = "";
+      imageInput.value = "";
+      messageInput.value = "";
+      styleInput.value = "border";
+      colorInput.value = "#38a6d8";
+      imageModeInput.value = "contain";
+      imageZoomInput.value = "100";
+      textSizeInput.value = "25";
+      imagePosition = { x: 0, y: 0 };
+      textPosition = { x: 50, y: 70 };
+      updatePreview();
+      statusBox.textContent = "Editor limpio. Las tarjetas ya agregadas se conservaron.";
+    });
+
+    document.getElementById("printButton").addEventListener("click", () => {
+      if (!cards.length) {
+        statusBox.textContent = "Primero agregá al menos una tarjeta a la hoja.";
+        return;
+      }
+      window.print();
+    });
+
+    // Dibuja una tarjeta como imagen PNG descargable.
+    document.getElementById("downloadButton").addEventListener("click", async () => {
+      const card = makeCardData();
+      if (!card.image && !card.message) {
+        statusBox.textContent = "Agregá una imagen o escribí un mensaje antes de descargar.";
+        return;
+      }
+      try {
+        const canvas = document.createElement("canvas");
+        const scale = 3;
+        canvas.width = 900 * scale;
+        canvas.height = 600 * scale;
+        const previewToExport = canvas.width / 450;
+        const ctx = canvas.getContext("2d");
+        ctx.fillStyle = card.style === "full" ? card.color : "#ffffff";
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+        if (card.image) {
+          const img = await loadImage(card.image);
+          const zoom = (card.imageZoom || 100) / 100;
+          const fit = card.imageMode === "cover"
+            ? Math.max(canvas.width / img.width, canvas.height / img.height)
+            : Math.min(canvas.width / img.width, canvas.height / img.height);
+          const ratio = fit * zoom;
+          const w = img.width * ratio, h = img.height * ratio;
+          ctx.save();
+          ctx.beginPath();
+          ctx.rect(0, 0, canvas.width, canvas.height);
+          ctx.clip();
+          ctx.drawImage(img,
+            (canvas.width - w) / 2 + (card.imageX || 0) * scale,
+            (canvas.height - h) / 2 + (card.imageY || 0) * scale, w, h);
+          ctx.restore();
+        }
+
+        // El borde se dibuja al final para que siempre quede visible.
+        ctx.strokeStyle = card.color;
+        ctx.lineWidth = 36 * scale;
+        ctx.strokeRect(18 * scale, 18 * scale, canvas.width - 36 * scale, canvas.height - 36 * scale);
+
+        drawWrappedText(ctx, card.message,
+          canvas.width * ((card.textX ?? 50) / 100),
+          canvas.height * ((card.textY ?? 70) / 100),
+          canvas.width * 0.82,
+          card.style === "full" ? "#ffffff" : "#20252b",
+          (card.textSize || 25) * previewToExport);
+
+        // Blob + URL temporal: evita navegar a una imagen data: al tocar Descargar.
+        const blob = await new Promise((resolve, reject) => {
+          canvas.toBlob(result => result ? resolve(result) : reject(new Error("No se pudo crear el PNG")), "image/png");
+        });
+        const blobUrl = URL.createObjectURL(blob);
+        const link = document.createElement("a");
+        link.href = blobUrl;
+        link.download = "tarjeta-comunicacion-9x6.png";
+        link.style.display = "none";
+        document.body.appendChild(link);
+        link.click();
+        link.remove();
+        setTimeout(() => URL.revokeObjectURL(blobUrl), 60000);
+        statusBox.textContent = "Se preparó la descarga PNG. Si no aparece, revisá la carpeta Descargas del teléfono.";
+      } catch (error) {
+        statusBox.textContent = "No se pudo generar el PNG. Probá con otra imagen o con un navegador externo como Chrome.";
+      }
+    });
+
+    function loadImage(src) {
+      return new Promise((resolve, reject) => {
+        const img = new Image();
+        img.onload = () => resolve(img);
+        img.onerror = reject;
+        img.src = src;
+      });
+    }
+
+    function drawWrappedText(ctx, text, x, y, maxWidth, color, requestedFontSize) {
+      if (!text) return;
+      ctx.fillStyle = color;
+      ctx.textAlign = "center";
+      ctx.textBaseline = "middle";
+      const words = text.split(/\s+/);
+      let lines = [], line = "";
+      let fontSize = requestedFontSize || 75;
+      function makeLines() {
+        ctx.font = `800 ${fontSize}px system-ui, sans-serif`;
+        lines = []; line = "";
+        for (const word of words) {
+          const test = line ? line + " " + word : word;
+          if (ctx.measureText(test).width > maxWidth && line) {
+            lines.push(line); line = word;
+          } else line = test;
+        }
+        if (line) lines.push(line);
+      }
+      makeLines();
+      while ((lines.length > 4 || lines.some(part => ctx.measureText(part).width > maxWidth)) && fontSize > 24) {
+        fontSize -= 2;
+        makeLines();
+      }
+      ctx.font = `800 ${fontSize}px system-ui, sans-serif`;
+      const lineHeight = fontSize * 1.15;
+      const totalHeight = lines.length * lineHeight;
+      const startY = Math.max(totalHeight / 2 + 8, Math.min(y, ctx.canvas.height - totalHeight / 2 - 8));
+      lines.forEach((part, i) => ctx.fillText(part, x, startY - totalHeight / 2 + i * lineHeight + lineHeight / 2, maxWidth));
+    }
+
+    updatePreview();
+    renderQueue();
+  </script>
+</body>
+</html>
